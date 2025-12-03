@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔮 個人化每日運勢</title>
+    <style>
+        /* 簡單的 CSS 美化 */
+        body {
+            font-family: '微軟正黑體', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 2rem;
+            border-radius: 20px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            width: 90%;
+            max-width: 500px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+        }
+        h1 { color: #ffd700; margin-bottom: 1.5rem; }
+        .input-group { margin-bottom: 1rem; text-align: left; }
+        label { display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #ccc; }
+        input {
+            width: 100%;
+            padding: 10px;
+            border-radius: 8px;
+            border: none;
+            background: rgba(255, 255, 255, 0.2);
+            color: #fff;
+            box-sizing: border-box; /* 重要：防止 padding 撐開寬度 */
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background: #e94560;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: 0.3s;
+            margin-top: 1rem;
+        }
+        button:hover { background: #ff2e63; }
+        
+        /* 運勢結果區塊 */
+        #result {
+            display: none; /* 預設隱藏 */
+            margin-top: 2rem;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 1.5rem;
+            border-radius: 10px;
+            text-align: left;
+        }
+        .fortune-score { font-size: 1.5rem; color: #ffd700; font-weight: bold; }
+        .tag {
+            display: inline-block;
+            background: #0f3460;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            margin-right: 5px;
+            margin-bottom: 5px;
+        }
+        .loading { display: none; margin-top: 1rem; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🔮 今日運勢啟示</h1>
+    
+    <div class="input-group">
+        <label>你的名字</label>
+        <input type="text" id="name" placeholder="例如：王小明" value="王小明">
+    </div>
+    
+    <div class="input-group">
+        <label>生日 (YYYY-MM-DD)</label>
+        <input type="date" id="birthday" value="2000-01-01">
+    </div>
+
+    <button onclick="getFortune()">開始占卜</button>
+    
+    <p class="loading" id="loading">✨ 正在連結宇宙能量...</p>
+
+    <div id="result">
+        <h2 id="res-name" style="margin-top:0;"></h2>
+        <p>📅 <span id="res-date"></span></p>
+        <div style="margin-bottom: 10px;">
+            <span class="tag" id="res-zodiac"></span>
+            <span class="tag" id="res-chinese"></span>
+            <span class="tag" style="background:#53354a">幸運色：<span id="res-color"></span></span>
+            <span class="tag" style="background:#53354a">幸運數字：<span id="res-number"></span></span>
+        </div>
+        <hr style="border-color: rgba(255,255,255,0.1);">
+        <p class="fortune-score" id="res-stars"></p>
+        <p id="res-desc" style="line-height: 1.6;"></p>
+        
+        <div id="details" style="margin-top: 15px; font-size: 0.9rem; color: #ddd;"></div>
+    </div>
+</div>
+
+<script>
+    async function getFortune() {
+        const name = document.getElementById('name').value;
+        const birthday = document.getElementById('birthday').value;
+        const resultDiv = document.getElementById('result');
+        const loading = document.getElementById('loading');
+        
+        if(!name || !birthday) {
+            alert("請填寫完整資訊！");
+            return;
+        }
+
+        // 顯示載入中
+        loading.style.display = 'block';
+        resultDiv.style.display = 'none';
+
+        try {
+            // 呼叫你的 FastAPI 後端
+            const response = await fetch('/fortune', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    name: name,
+                    birthday: birthday,
+                    ask: ["全部"]
+                })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                // 填入資料
+                document.getElementById('res-name').innerText = `你好，${data.姓名}`;
+                document.getElementById('res-date').innerText = data.今天日期;
+                document.getElementById('res-zodiac').innerText = data.星座;
+                document.getElementById('res-chinese').innerText = "生肖" + data.生肖;
+                document.getElementById('res-color').innerText = data.幸運顏色;
+                document.getElementById('res-number').innerText = data.幸運數字;
+                document.getElementById('res-stars').innerText = data.運勢;
+                document.getElementById('res-desc').innerText = data.描述;
+
+                // 處理細項
+                let detailHtml = '';
+                const cats = ['感情', '事業', '學業', '財運'];
+                cats.forEach(cat => {
+                    if(data[cat]) {
+                        detailHtml += `<p><strong>${cat}：</strong> ${data[cat].stars} ${data[cat].message}</p>`;
+                    }
+                });
+                document.getElementById('details').innerHTML = detailHtml;
+
+                // 顯示結果
+                resultDiv.style.display = 'block';
+            } else {
+                alert("錯誤：" + JSON.stringify(data));
+            }
+        } catch (error) {
+            alert("發生錯誤，請稍後再試！");
+            console.error(error);
+        } finally {
+            loading.style.display = 'none';
+        }
+    }
+</script>
+
+</body>
+</html>
