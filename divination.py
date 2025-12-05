@@ -1,45 +1,40 @@
 from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 import random
 import datetime
-from typing import Optional
+import os
+from typing import Optional, List
 
 # --------------------------
 # API 初始化
 # --------------------------
 app = FastAPI(
-    title="個人化每日運勢 API (含網頁版)",
-    description="根據姓名與生日產生你的今日運勢 💫 可自由選擇查詢感情、事業、學業、財運",
-    version="7.2"
+    title="個人化每日運勢 API (勾選版)",
+    description="根據姓名與生日產生你的今日運勢，支援勾選特定運勢項目。",
+    version="9.0"
 )
 
-# ==========================================
-# 🔥 新增：掛載靜態檔案與首頁路由
-# ==========================================
+# 設定 HTML 檔案名稱 (請確保這個檔案跟 main.py 在同一層)
+HTML_FILENAME = "index.html"
 
-# 1. 告訴 FastAPI：static 資料夾裡的東西是靜態檔案 (css, js, html)
-import os # 記得在檔案最上面 import os
-
-# 這行會自動抓出這個程式檔案所在的「絕對路徑」
-static_path = os.path.join(os.path.dirname(__file__), "static")
-app.mount("/static", StaticFiles(directory=static_path), name="static")
-
-# 2. 設定首頁路由：當使用者連到網址根目錄時，回傳 index.html
 @app.get("/")
 async def read_index():
-    return FileResponse('static/index.html')
+    # 檢查檔案是否存在
+    if not os.path.exists(HTML_FILENAME):
+        return f"錯誤：找不到 {HTML_FILENAME}，請確認它跟 main.py 在同一個資料夾內！"
+    return FileResponse(HTML_FILENAME)
 
 # ==========================================
-# 🔮 原本的運勢 API 邏輯
+# 🔮 運勢 API 邏輯
 # ==========================================
 
 # --- Pydantic 模型 ---
 class FortuneRequest(BaseModel):
     name: str = Field(..., description="使用者的姓名", example="王小明")
-    birthday: str = Field(..., description="使用者的生日 (YYYY-MM-DD)", example="1990-01-31", pattern=r"^\d{4}-\d{2}-\d{2}$")
-    ask: list[str] = Field(["全部"], description="想詢問的運勢項目", example=["全部"])
+    birthday: str = Field(..., description="使用者的生日 (YYYY-MM-DD)", example="1990-01-31")
+    # 修改：這裡接收勾選的項目列表，若沒勾選則為空 list
+    ask: List[str] = Field([], description="想詢問的運勢項目", example=["感情", "事業"])
 
 class SubFortune(BaseModel):
     stars: str = Field(..., description="星等表示", example="★★★★☆")
@@ -55,13 +50,13 @@ class FortuneResponse(BaseModel):
     描述: str
     幸運顏色: str
     幸運數字: int
+    # 使用 Optional，沒選到的項目會回傳 null (前端就不會顯示)
     感情: Optional[SubFortune] = None
     事業: Optional[SubFortune] = None
     學業: Optional[SubFortune] = None
     財運: Optional[SubFortune] = None
-    error: Optional[dict] = None
 
-# --- 輔助函數 ---
+# --- 輔助函數 (維持不變) ---
 def get_zodiac(month: int, day: int) -> str:
     zodiac_dates = [
         ((1, 20), "摩羯座"), ((2, 19), "水瓶座"), ((3, 21), "雙魚座"),
@@ -80,11 +75,10 @@ def get_chinese_zodiac(year: int) -> str:
     return zodiacs[(year - 1900) % 12]
 
 def get_lucky_color(year: int, zodiac: str) -> str:
-    # 簡化的顏色邏輯，確保程式碼簡潔
-    colors = ["紅", "橙", "黃", "綠", "藍", "靛", "紫", "白", "黑", "金", "銀"]
+    colors = ["熱情紅", "活力橙", "耀眼黃", "森林綠", "天空藍", "神秘靛", "優雅紫", "純潔白", "酷炫黑", "奢華金", "時尚銀"]
     return random.choice(colors)
 
-# --- 資料字典 ---
+# --- 資料庫 ---
 zodiac_traits = {
     "牡羊座": "🔥 充滿衝勁", "金牛座": "🌿 穩重可靠", "雙子座": "💫 靈活聰明",
     "巨蟹座": "🦀 情感豐富", "獅子座": "🦁 光芒四射", "處女座": "✏️ 謹慎細心",
@@ -93,8 +87,8 @@ zodiac_traits = {
 }
 
 luck_levels = {
-    1: ("★☆☆☆☆", ["💀 大凶！低調行事", "☠️ 小心為上"]),
-    2: ("★★☆☆☆", ["😞 小凶，凡事三思", "⚠️ 注意溝通"]),
+    1: ("★☆☆☆☆", ["💀 低調行事", "☠️ 小心為上"]),
+    2: ("★★☆☆☆", ["😞 凡事三思", "⚠️ 注意溝通"]),
     3: ("★★★☆☆", ["😐 平平，歲月靜好", "🤔 按部就班"]),
     4: ("★★★★☆", ["😄 小吉，貴人相助", "🌟 運勢不錯"]),
     5: ("★★★★★", ["🤩 大吉！心想事成", "🏆 強運當頭"])
@@ -115,7 +109,6 @@ fortune_categories = {
 
 def pick_sub_fortune(category_dict) -> SubFortune:
     level = random.randint(1, 5)
-    # 如果該等級沒有特定描述，就用通用描述
     specific_desc = category_dict.get(level, ["運勢如上"]) 
     return SubFortune(
         stars="★" * level + "☆" * (5 - level),
@@ -125,7 +118,12 @@ def pick_sub_fortune(category_dict) -> SubFortune:
 # --- API 核心路由 ---
 @app.post("/fortune", response_model=FortuneResponse)
 def get_fortune(request: FortuneRequest):
-    bday = datetime.datetime.strptime(request.birthday, "%Y-%m-%d")
+    # 處理日期
+    try:
+        bday = datetime.datetime.strptime(request.birthday, "%Y-%m-%d")
+    except ValueError:
+        bday = datetime.datetime.today()
+
     zodiac = get_zodiac(bday.month, bday.day)
     c_zodiac = get_chinese_zodiac(bday.year)
     
@@ -144,12 +142,19 @@ def get_fortune(request: FortuneRequest):
         "幸運數字": random.randint(1, 99)
     }
 
-    asks = request.ask
-    if "全部" in asks:
-        asks = ["感情", "事業", "學業", "財運"]
-        
-    for item in asks:
+    # 處理勾選邏輯
+    # 直接讀取 request.ask (這是一個 list)
+    # 如果 list 是空的，這個迴圈就不會執行，結果就只有上面的基本資料 (符合需求)
+    for item in request.ask:
         if item in fortune_categories:
             result[item] = pick_sub_fortune(fortune_categories[item])
     
     return result
+
+if __name__ == "__main__":
+    import uvicorn
+    print("---------------------------------------------------------")
+    print(f"🔮 伺服器啟動中！請確認 {HTML_FILENAME} 就在同一資料夾內。")
+    print("👉 請打開瀏覽器輸入: http://127.0.0.1:8000")
+    print("---------------------------------------------------------")
+    uvicorn.run(app, host="127.0.0.1", port=8000)
