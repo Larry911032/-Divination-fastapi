@@ -20,7 +20,11 @@ app = FastAPI(
 # ==========================================
 
 # 1. 告訴 FastAPI：static 資料夾裡的東西是靜態檔案 (css, js, html)
-app.mount("/static", StaticFiles(directory="static"), name="static")
+import os # 記得在檔案最上面 import os
+
+# 這行會自動抓出這個程式檔案所在的「絕對路徑」
+static_path = os.path.join(os.path.dirname(__file__), "static")
+app.mount("/static", StaticFiles(directory=static_path), name="static")
 
 # 2. 設定首頁路由：當使用者連到網址根目錄時，回傳 index.html
 @app.get("/")
