@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 import random
@@ -10,20 +11,26 @@ from typing import Optional, List
 # API 初始化
 # --------------------------
 app = FastAPI(
-    title="個人化每日運勢 API (勾選版)",
+    title="Nebula 星雲占卜 API",
     description="根據姓名與生日產生你的今日運勢，支援勾選特定運勢項目。",
-    version="9.0"
+    version="9.1"
 )
 
-# 設定 HTML 檔案名稱 (請確保這個檔案跟 main.py 在同一層)
-HTML_FILENAME = "index.html"
+# ==========================================
+# 🔥 關鍵修正：路徑與靜態檔案掛載
+# ==========================================
 
+# 1. 取得絕對路徑 (解決 Render 找不到檔案的問題)
+base_dir = os.path.dirname(os.path.abspath(__file__))
+static_dir = os.path.join(base_dir, "static")
+
+# 2. 掛載 static 資料夾 (讓前端網頁、Icon、Manifest 能被讀取)
+app.mount("/static", StaticFiles(directory=static_dir), name="static")
+
+# 3. 首頁路由 (回傳 index.html)
 @app.get("/")
 async def read_index():
-    # 檢查檔案是否存在
-    if not os.path.exists(HTML_FILENAME):
-        return f"錯誤：找不到 {HTML_FILENAME}，請確認它跟 main.py 在同一個資料夾內！"
-    return FileResponse(HTML_FILENAME)
+    return FileResponse(os.path.join(static_dir, 'index.html'))
 
 # ==========================================
 # 🔮 運勢 API 邏輯
@@ -33,7 +40,7 @@ async def read_index():
 class FortuneRequest(BaseModel):
     name: str = Field(..., description="使用者的姓名", example="王小明")
     birthday: str = Field(..., description="使用者的生日 (YYYY-MM-DD)", example="1990-01-31")
-    # 修改：這裡接收勾選的項目列表，若沒勾選則為空 list
+    # 接收勾選的項目列表
     ask: List[str] = Field([], description="想詢問的運勢項目", example=["感情", "事業"])
 
 class SubFortune(BaseModel):
@@ -50,13 +57,13 @@ class FortuneResponse(BaseModel):
     描述: str
     幸運顏色: str
     幸運數字: int
-    # 使用 Optional，沒選到的項目會回傳 null (前端就不會顯示)
+    # 使用 Optional，沒選到的項目會回傳 null
     感情: Optional[SubFortune] = None
     事業: Optional[SubFortune] = None
     學業: Optional[SubFortune] = None
     財運: Optional[SubFortune] = None
 
-# --- 輔助函數 (維持不變) ---
+# --- 輔助函數 ---
 def get_zodiac(month: int, day: int) -> str:
     zodiac_dates = [
         ((1, 20), "摩羯座"), ((2, 19), "水瓶座"), ((3, 21), "雙魚座"),
@@ -94,6 +101,14 @@ luck_levels = {
     5: ("★★★★★", ["🤩 大吉！心想事成", "🏆 強運當頭"])
 }
 
+# 🔥 補回：幸運小叮嚀列表
+extra_tips = [
+    "🍀 幸運色能帶給你好心情", "💤 今晚早點休息，明天會更好",
+    "☕ 一杯熱飲能帶來平靜", "📖 適合閱讀或吸收新知",
+    "💬 小心別和親近的人起衝突", "💘 可能會收到意想不到的關心",
+    "🧘‍♀️ 嘗試放空自己，釋放壓力", "💪 自信是今天最強的武器"
+]
+
 sub_fortunes = {
     1: ["⚠️ 不太順利", "🛑 暫緩計畫"], 2: ["🔍 注意細節", "😕 有點小麻煩"],
     3: ["📘 穩定前進", "🧊 平淡是福"], 4: ["✨ 會有驚喜", "👍 手氣不錯"],
@@ -118,7 +133,6 @@ def pick_sub_fortune(category_dict) -> SubFortune:
 # --- API 核心路由 ---
 @app.post("/fortune", response_model=FortuneResponse)
 def get_fortune(request: FortuneRequest):
-    # 處理日期
     try:
         bday = datetime.datetime.strptime(request.birthday, "%Y-%m-%d")
     except ValueError:
@@ -130,6 +144,9 @@ def get_fortune(request: FortuneRequest):
     luck_val = random.randint(1, 5)
     luck_star, luck_msgs = luck_levels[luck_val]
     
+    # 🔥 補回：隨機選擇一個小叮嚀
+    tip = random.choice(extra_tips)
+    
     result = {
         "今天日期": datetime.date.today().isoformat(),
         "姓名": request.name,
@@ -137,14 +154,13 @@ def get_fortune(request: FortuneRequest):
         "星座": zodiac,
         "生肖": c_zodiac,
         "運勢": luck_star,
-        "描述": f"{zodiac_traits.get(zodiac, '')} {random.choice(luck_msgs)}",
+        # 🔥 補回：把 tip 加回描述中
+        "描述": f"{zodiac_traits.get(zodiac, '')} {random.choice(luck_msgs)} {tip}",
         "幸運顏色": get_lucky_color(bday.year, c_zodiac),
         "幸運數字": random.randint(1, 99)
     }
 
     # 處理勾選邏輯
-    # 直接讀取 request.ask (這是一個 list)
-    # 如果 list 是空的，這個迴圈就不會執行，結果就只有上面的基本資料 (符合需求)
     for item in request.ask:
         if item in fortune_categories:
             result[item] = pick_sub_fortune(fortune_categories[item])
@@ -153,8 +169,6 @@ def get_fortune(request: FortuneRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    print("---------------------------------------------------------")
-    print(f"🔮 伺服器啟動中！請確認 {HTML_FILENAME} 就在同一資料夾內。")
-    print("👉 請打開瀏覽器輸入: http://127.0.0.1:8000")
-    print("---------------------------------------------------------")
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    # 使用 0.0.0.0 和環境變數 PORT 以適應 Render 環境
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)

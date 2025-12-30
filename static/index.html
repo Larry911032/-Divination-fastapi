@@ -3,9 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🔮 個人化每日運勢</title>
+    <title>Nebula 星雲占卜 | 每日運勢</title>
+    
+    <!-- PWA 設定 -->
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#16213e">
+    <link rel="apple-touch-icon" href="/static/icon.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+    <!-- 截圖工具 -->
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+
     <style>
-        /* 簡單的 CSS 美化 */
+        /* 基礎樣式保持不變 */
         body {
             font-family: '微軟正黑體', sans-serif;
             background: linear-gradient(135deg, #1a1a2e, #16213e);
@@ -15,6 +26,8 @@
             align-items: center;
             min-height: 100vh;
             margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
         }
         .container {
             background: rgba(255, 255, 255, 0.1);
@@ -22,93 +35,151 @@
             padding: 2rem;
             border-radius: 20px;
             box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-            width: 90%;
-            max-width: 500px;
+            width: 100%;
+            max-width: 450px;
             text-align: center;
             border: 1px solid rgba(255, 255, 255, 0.18);
         }
-        h1 { color: #ffd700; margin-bottom: 1.5rem; }
+        h1 { color: #ffd700; margin-bottom: 1.5rem; text-shadow: 0 0 10px rgba(255, 215, 0, 0.5); }
+        
         .input-group { margin-bottom: 1rem; text-align: left; }
         label { display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #ccc; }
-        input {
+        input[type="text"], input[type="date"] {
             width: 100%;
-            padding: 10px;
+            padding: 12px;
             border-radius: 8px;
             border: none;
             background: rgba(255, 255, 255, 0.2);
             color: #fff;
-            box-sizing: border-box; /* 重要：防止 padding 撐開寬度 */
+            box-sizing: border-box;
+            font-size: 1rem;
         }
-        button {
+
+        /* 勾選框樣式 */
+        .checkbox-group {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 1.5rem;
+            background: rgba(0,0,0,0.2);
+            padding: 12px;
+            border-radius: 8px;
+        }
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            font-size: 0.9rem;
+            cursor: pointer;
+        }
+        .checkbox-item input { margin-right: 5px; transform: scale(1.2); cursor: pointer; }
+
+        .btn {
             width: 100%;
             padding: 12px;
-            background: #e94560;
-            color: white;
             border: none;
             border-radius: 8px;
             font-size: 1.1rem;
             cursor: pointer;
             transition: 0.3s;
-            margin-top: 1rem;
+            font-weight: bold;
         }
-        button:hover { background: #ff2e63; }
+        .btn-primary { background: #e94560; color: white; margin-top: 10px; }
+        .btn-primary:hover { background: #ff2e63; box-shadow: 0 0 15px rgba(233, 69, 96, 0.5); }
         
-        /* 運勢結果區塊 */
-        #result {
-            display: none; /* 預設隱藏 */
-            margin-top: 2rem;
-            background: rgba(0, 0, 0, 0.2);
-            padding: 1.5rem;
-            border-radius: 10px;
-            text-align: left;
+        .btn-share { 
+            background: #0f3460; 
+            color: #ffd700; 
+            margin-top: 15px; 
+            border: 1px solid #ffd700;
         }
-        .fortune-score { font-size: 1.5rem; color: #ffd700; font-weight: bold; }
+        
+        #result {
+            display: none;
+            margin-top: 2rem;
+            background: linear-gradient(180deg, rgba(30, 30, 60, 0.95), rgba(20, 20, 40, 0.95));
+            padding: 2rem;
+            border-radius: 15px;
+            text-align: left;
+            border: 2px solid #ffd700;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+        }
+        .fortune-score { font-size: 2rem; color: #ffd700; font-weight: bold; text-align: center; margin: 10px 0; text-shadow: 0 0 10px rgba(255, 215, 0, 0.3); }
+        .tag-container { text-align: center; margin-bottom: 15px; }
         .tag {
             display: inline-block;
-            background: #0f3460;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 0.8rem;
-            margin-right: 5px;
-            margin-bottom: 5px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            margin: 3px;
+            border: 1px solid rgba(255,255,255,0.2);
         }
-        .loading { display: none; margin-top: 1rem; }
+        .detail-item {
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding: 8px 0;
+            font-size: 0.95rem;
+            color: #ddd;
+        }
+        .detail-item:last-child { border-bottom: none; }
+        .detail-title { color: #ffd700; font-weight: bold; margin-right: 5px; }
+        .footer-note { text-align: center; font-size: 0.7rem; color: #666; margin-top: 20px; display: block; }
+        .dev-link { text-align: center; margin-top: 10px; font-size: 0.8rem; }
+        .dev-link a { color: #666; text-decoration: none; border-bottom: 1px dashed #666; }
+        .loading { display: none; margin-top: 1rem; color: #ffd700; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>🔮 今日運勢啟示</h1>
+    <h1>天機</h1>
     
-    <div class="input-group">
-        <label>你的名字</label>
-        <input type="text" id="name" placeholder="例如：王小明" value="王小明">
-    </div>
-    
-    <div class="input-group">
-        <label>生日 (YYYY-MM-DD)</label>
-        <input type="date" id="birthday" value="2000-01-01">
-    </div>
+    <div id="input-area">
+        <div class="input-group">
+            <label>你的名字</label>
+            <input type="text" id="name" placeholder="例如：王小明" value="王小明">
+        </div>
+        
+        <div class="input-group">
+            <label>生日 (YYYY-MM-DD)</label>
+            <input type="date" id="birthday" value="2000-01-01">
+        </div>
 
-    <button onclick="getFortune()">開始占卜</button>
+        <label style="margin-bottom: 5px;">想問什麼？(請至少選一項)</label>
+        <!-- 🔥 修改點 1：拿掉 checked 屬性，預設不勾選 -->
+        <div class="checkbox-group">
+            <label class="checkbox-item"><input type="checkbox" name="ask" value="感情"> 感情</label>
+            <label class="checkbox-item"><input type="checkbox" name="ask" value="事業"> 事業</label>
+            <label class="checkbox-item"><input type="checkbox" name="ask" value="學業"> 學業</label>
+            <label class="checkbox-item"><input type="checkbox" name="ask" value="財運"> 財運</label>
+        </div>
+
+        <button class="btn btn-primary" onclick="getFortune()">開始占卜</button>
+    </div>
     
     <p class="loading" id="loading">✨ 正在連結宇宙能量...</p>
 
     <div id="result">
-        <h2 id="res-name" style="margin-top:0;"></h2>
-        <p>📅 <span id="res-date"></span></p>
-        <div style="margin-bottom: 10px;">
+        <h2 id="res-name" style="margin-top:0; text-align:center; color: #fff;"></h2>
+        <p style="text-align:center; color:#aaa; font-size:0.9rem; margin-top:-10px;">📅 <span id="res-date"></span></p>
+        
+        <div class="tag-container">
             <span class="tag" id="res-zodiac"></span>
             <span class="tag" id="res-chinese"></span>
-            <span class="tag" style="background:#53354a">幸運色：<span id="res-color"></span></span>
-            <span class="tag" style="background:#53354a">幸運數字：<span id="res-number"></span></span>
+            <span class="tag" style="color:#ff9a9e">🎨 <span id="res-color"></span></span>
+            <span class="tag" style="color:#a18cd1">🔢 <span id="res-number"></span></span>
         </div>
-        <hr style="border-color: rgba(255,255,255,0.1);">
+
         <p class="fortune-score" id="res-stars"></p>
-        <p id="res-desc" style="line-height: 1.6;"></p>
+        <p id="res-desc" style="line-height: 1.6; text-align: justify;"></p>
         
-        <div id="details" style="margin-top: 15px; font-size: 0.9rem; color: #ddd;"></div>
+        <div id="details" style="margin-top: 15px;"></div>
+        
+        <span class="footer-note">Generated by Nebula 星雲占卜 App</span>
+        <div class="dev-link">
+            <a href="/docs" target="_blank">🔧 開發者 API 文件</a>
+        </div>
     </div>
+
+    <button id="share-btn" class="btn btn-share" style="display:none;" onclick="downloadCard()">📸 儲存運勢圖卡</button>
 </div>
 
 <script>
@@ -116,36 +187,44 @@
         const name = document.getElementById('name').value;
         const birthday = document.getElementById('birthday').value;
         const resultDiv = document.getElementById('result');
+        const shareBtn = document.getElementById('share-btn');
         const loading = document.getElementById('loading');
         
+        // 取得勾選的項目
+        const checkboxes = document.querySelectorAll('input[name="ask"]:checked');
+        let askList = Array.from(checkboxes).map(cb => cb.value);
+        
+        // 驗證輸入
         if(!name || !birthday) {
-            alert("請填寫完整資訊！");
+            alert("請填寫姓名與生日！");
             return;
         }
 
-        // 顯示載入中
+        // 🔥 修改點 2：強制使用者至少選一項
+        if (askList.length === 0) {
+            alert("請至少勾選一個你想知道的運勢項目！");
+            return; // 停止執行，不發送請求
+        }
+
         loading.style.display = 'block';
         resultDiv.style.display = 'none';
+        shareBtn.style.display = 'none';
 
         try {
-            // 呼叫你的 FastAPI 後端
             const response = await fetch('/fortune', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     name: name,
                     birthday: birthday,
-                    ask: ["全部"]
+                    ask: askList
                 })
             });
 
             const data = await response.json();
 
             if (response.ok) {
-                // 填入資料
-                document.getElementById('res-name').innerText = `你好，${data.姓名}`;
+                document.getElementById('res-name').innerText = data.姓名;
                 document.getElementById('res-date').innerText = data.今天日期;
                 document.getElementById('res-zodiac').innerText = data.星座;
                 document.getElementById('res-chinese').innerText = "生肖" + data.生肖;
@@ -154,18 +233,23 @@
                 document.getElementById('res-stars').innerText = data.運勢;
                 document.getElementById('res-desc').innerText = data.描述;
 
-                // 處理細項
                 let detailHtml = '';
                 const cats = ['感情', '事業', '學業', '財運'];
                 cats.forEach(cat => {
                     if(data[cat]) {
-                        detailHtml += `<p><strong>${cat}：</strong> ${data[cat].stars} ${data[cat].message}</p>`;
+                        detailHtml += `
+                        <div class="detail-item">
+                            <span class="detail-title">${cat}</span>
+                            <span>${data[cat].stars} ${data[cat].message}</span>
+                        </div>`;
                     }
                 });
                 document.getElementById('details').innerHTML = detailHtml;
 
-                // 顯示結果
                 resultDiv.style.display = 'block';
+                shareBtn.style.display = 'block';
+                resultDiv.scrollIntoView({behavior: "smooth"});
+
             } else {
                 alert("錯誤：" + JSON.stringify(data));
             }
@@ -175,6 +259,31 @@
         } finally {
             loading.style.display = 'none';
         }
+    }
+
+    function downloadCard() {
+        const element = document.getElementById("result");
+        const btn = document.getElementById("share-btn");
+        btn.innerText = "🖼️ 生成中...";
+        btn.disabled = true;
+
+        html2canvas(element, {
+            scale: 2,
+            backgroundColor: "#1e1e3c",
+            useCORS: true
+        }).then(canvas => {
+            const link = document.createElement('a');
+            link.download = `fortune_${new Date().toISOString().slice(0,10)}.png`;
+            link.href = canvas.toDataURL("image/png");
+            link.click();
+            btn.innerText = "📸 儲存運勢圖卡";
+            btn.disabled = false;
+        }).catch(err => {
+            console.error(err);
+            alert("截圖失敗，請手動截圖試試！");
+            btn.innerText = "📸 儲存運勢圖卡";
+            btn.disabled = false;
+        });
     }
 </script>
 
