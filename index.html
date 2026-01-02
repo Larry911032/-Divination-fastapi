@@ -3,191 +3,214 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🔮 個人化運勢 (整合版)</title>
+    <title>🔮 個人化每日運勢</title>
     <style>
-        body { 
-            font-family: '微軟正黑體', sans-serif; 
-            background: linear-gradient(135deg, #1a1a2e, #16213e); 
-            color: #fff; 
-            display: flex; 
-            justify-content: center; 
-            align-items: center; 
-            min-height: 100vh; 
-            margin: 0; 
-            padding: 20px 0;
+        /* CSS 美化 */
+        body {
+            font-family: '微軟正黑體', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
         }
-        .container { 
-            background: rgba(255, 255, 255, 0.1); 
-            backdrop-filter: blur(10px); 
-            padding: 2rem; 
-            border-radius: 20px; 
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37); 
-            width: 90%; 
-            max-width: 500px; 
-            text-align: center; 
-            border: 1px solid rgba(255, 255, 255, 0.18); 
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 2rem;
+            border-radius: 20px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            width: 90%;
+            max-width: 500px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.18);
         }
-        h1 { color: #ffd700; margin-bottom: 1rem; }
-        
-        /* 登入按鈕樣式 */
-        .btn-container { display: flex; flex-direction: column; gap: 15px; margin-bottom: 1.5rem; }
-        .login-btn { display: block; width: 100%; padding: 12px; border-radius: 8px; text-decoration: none; font-weight: bold; color: white; box-sizing: border-box; transition: opacity 0.3s; text-align: center; }
-        .login-btn:hover { opacity: 0.8; }
-        .btn-google { background-color: #DB4437; border: 1px solid #DB4437; }
-        .btn-github { background-color: #24292e; border: 1px solid #ffffff33; }
-        .btn-facebook { background-color: #1877F2; border: 1px solid #1877F2; }
-
-        /* 使用者狀態 */
-        .user-status { margin-bottom: 1.5rem; padding: 10px; background: rgba(0, 255, 127, 0.1); border: 1px solid rgba(0, 255, 127, 0.3); border-radius: 8px; color: #8affc1; display: none; }
-        .user-status a { color: #ff2e63; margin-left: 10px; text-decoration: none; font-weight: bold; }
-        
-        /* 輸入區塊 */
+        h1 { color: #ffd700; margin-bottom: 1.5rem; }
         .input-group { margin-bottom: 1rem; text-align: left; }
         label { display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #ccc; }
-        input[type="text"], input[type="date"] { width: 100%; padding: 10px; border-radius: 8px; border: none; background: rgba(255, 255, 255, 0.2); color: #fff; box-sizing: border-box; }
+        input[type="text"], input[type="date"] {
+            width: 100%;
+            padding: 10px;
+            border-radius: 8px;
+            border: none;
+            background: rgba(255, 255, 255, 0.2);
+            color: #fff;
+            box-sizing: border-box;
+        }
         
-        /* Checkbox 樣式 */
-        .checkbox-group { text-align: left; margin: 15px 0; display: flex; flex-wrap: wrap; gap: 10px; }
-        .checkbox-group label { display: inline-flex; align-items: center; cursor: pointer; color: #fff; margin-bottom: 0; background: rgba(255,255,255,0.1); padding: 5px 10px; border-radius: 20px; transition: 0.2s;}
-        .checkbox-group label:hover { background: rgba(255,255,255,0.2); }
-        .checkbox-group input { margin-right: 5px; }
+        /* 勾選框樣式區塊 */
+        .checkbox-group {
+            text-align: left;
+            margin-top: 15px;
+            background: rgba(0,0,0,0.2);
+            padding: 10px;
+            border-radius: 8px;
+        }
+        .checkbox-label {
+            display: inline-block;
+            margin-right: 15px;
+            margin-bottom: 5px;
+            cursor: pointer;
+            color: #fff;
+        }
+        .checkbox-label input {
+            margin-right: 5px;
+            transform: scale(1.2); /* 放大勾選框 */
+        }
 
-        button.submit-btn { width: 100%; padding: 12px; background: #e94560; color: white; border: none; border-radius: 8px; font-size: 1.1rem; cursor: pointer; transition: 0.3s; margin-top: 1rem; }
-        button.submit-btn:hover { background: #ff2e63; }
+        button {
+            width: 100%;
+            padding: 12px;
+            background: #e94560;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: 0.3s;
+            margin-top: 1.5rem;
+        }
+        button:hover { background: #ff2e63; }
         
-        /* 結果區塊 */
-        #result { display: none; margin-top: 2rem; background: rgba(0, 0, 0, 0.2); padding: 1.5rem; border-radius: 10px; text-align: left; animation: fadeIn 0.5s ease-in; }
+        #result {
+            display: none;
+            margin-top: 2rem;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 1.5rem;
+            border-radius: 10px;
+            text-align: left;
+            animation: fadeIn 0.5s ease-in;
+        }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         
-        .result-header { border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 10px; margin-bottom: 10px; }
-        .detail-item { margin-bottom:10px; border-bottom:1px dashed #555; padding-bottom:5px; }
-        .loading { display: none; text-align: center; margin-top: 20px; color: #ffd700; font-weight: bold; }
+        .fortune-score { font-size: 1.5rem; color: #ffd700; font-weight: bold; }
+        .tag {
+            display: inline-block;
+            background: #0f3460;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            margin-right: 5px;
+            margin-bottom: 5px;
+        }
+        .loading { display: none; margin-top: 1rem; color: #00d4ff; }
     </style>
 </head>
 <body>
+
 <div class="container">
     <h1>🔮 今日運勢啟示</h1>
     
-    <div id="login-buttons" class="btn-container">
-        <a href="/login/google" class="login-btn btn-google">G 使用 Google 登入</a>
-        <a href="/login/github" class="login-btn btn-github">🐱 使用 GitHub 登入</a>
-        <a href="/login/facebook" class="login-btn btn-facebook">f 使用 Facebook 登入</a>
+    <div class="input-group">
+        <label>你的名字</label>
+        <input type="text" id="name" placeholder="例如：王小明" value="王小明">
     </div>
-
-    <div id="user-info-area" class="user-status"></div>
-
-    <div class="input-group"><label>你的名字</label><input type="text" id="name" placeholder="例如：王小明"></div>
-    <div class="input-group"><label>生日</label><input type="date" id="birthday" value="2000-01-01"></div>
     
     <div class="input-group">
-        <label>想詳細了解的項目（可複選）：</label>
+        <label>生日 (YYYY-MM-DD)</label>
+        <input type="date" id="birthday" value="2000-01-01">
+    </div>
+
+    <div class="input-group">
+        <label>想詳細了解的項目 (可複選)</label>
         <div class="checkbox-group">
-            <label><input type="checkbox" name="ask" value="感情"> 感情</label>
-            <label><input type="checkbox" name="ask" value="事業"> 事業</label>
-            <label><input type="checkbox" name="ask" value="學業"> 學業</label>
-            <label><input type="checkbox" name="ask" value="財運"> 財運</label>
+            <label class="checkbox-label"><input type="checkbox" name="ask" value="感情"> 感情</label>
+            <label class="checkbox-label"><input type="checkbox" name="ask" value="事業"> 事業</label>
+            <label class="checkbox-label"><input type="checkbox" name="ask" value="學業"> 學業</label>
+            <label class="checkbox-label"><input type="checkbox" name="ask" value="財運"> 財運</label>
         </div>
     </div>
 
-    <button class="submit-btn" onclick="getFortune()">開始占卜</button>
-    <div id="loading" class="loading">✨ 觀測星象中...</div>
+    <button onclick="getFortune()">開始占卜</button>
     
+    <p class="loading" id="loading">✨ 正在連結宇宙能量...</p>
+
     <div id="result">
-        <div class="result-header">
-            <h2 id="res-name" style="margin:0; color:#ffd700;"></h2>
-            <small id="res-date" style="color:#aaa;"></small>
-            <div style="margin-top:5px;">
-                <span id="res-zodiac"></span> | <span id="res-chinese"></span>
-            </div>
+        <h2 id="res-name" style="margin-top:0;"></h2>
+        <p>📅 <span id="res-date"></span></p>
+        <div style="margin-bottom: 10px;">
+            <span class="tag" id="res-zodiac"></span>
+            <span class="tag" id="res-chinese"></span>
+            <span class="tag" style="background:#53354a">幸運色：<span id="res-color"></span></span>
+            <span class="tag" style="background:#53354a">幸運數字：<span id="res-number"></span></span>
         </div>
-        
+        <hr style="border-color: rgba(255,255,255,0.1);">
+        <p class="fortune-score" id="res-stars"></p>
         <p id="res-desc" style="line-height: 1.6;"></p>
         
-        <div style="display:flex; justify-content: space-between; margin: 15px 0;">
-            <div>幸運色：<strong id="res-color" style="color:#e94560;"></strong></div>
-            <div>幸運數：<strong id="res-number" style="color:#e94560;"></strong></div>
-        </div>
-
-        <p style="color:#ffd700; font-size:1.5em; font-weight:bold; text-align:center; border: 1px solid rgba(255,215,0,0.3); padding: 10px; border-radius: 10px;">
-            今日總運：<span id="res-stars"></span>
-        </p>
-
-        <div id="details" style="margin-top: 15px;"></div>
+        <div id="details" style="margin-top: 15px; font-size: 0.95rem; color: #eee;"></div>
     </div>
 </div>
 
 <script>
-    // 頁面載入時檢查是否已登入
-    window.onload = async function() {
-        try {
-            const response = await fetch('/me');
-            const data = await response.json();
-            if (data.is_logged_in) {
-                document.getElementById('login-buttons').style.display = 'none';
-                const infoArea = document.getElementById('user-info-area');
-                infoArea.style.display = 'block';
-                infoArea.innerHTML = `👋 嗨，${data.name}！ <a href="/logout">登出</a>`;
-                document.getElementById('name').value = data.name;
-            }
-        } catch (error) { console.log("尚未登入"); }
-    };
-
     async function getFortune() {
         const name = document.getElementById('name').value;
         const birthday = document.getElementById('birthday').value;
         
-        // 抓取勾選項目
+        // 1. 抓取所有被勾選的項目
         const checkboxes = document.querySelectorAll('input[name="ask"]:checked');
         let askList = [];
-        checkboxes.forEach((cb) => { askList.push(cb.value); });
+        checkboxes.forEach((cb) => {
+            askList.push(cb.value);
+        });
 
         const resultDiv = document.getElementById('result');
         const loading = document.getElementById('loading');
         
-        if(!name || !birthday) { alert("請填寫完整資訊！"); return; }
-        
+        if(!name || !birthday) {
+            alert("請填寫完整資訊！");
+            return;
+        }
+
         loading.style.display = 'block';
         resultDiv.style.display = 'none';
 
         try {
-            const res = await fetch('/fortune', {
-                method: 'POST', 
+            const response = await fetch('/fortune', {
+                method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, birthday, ask: askList })
+                body: JSON.stringify({
+                    name: name,
+                    birthday: birthday,
+                    ask: askList // 傳送勾選的列表 (例如 ["感情", "學業"] 或 [])
+                })
             });
-            const data = await res.json();
-            
-            if (res.ok) {
-                // 填入基本資料
+
+            const data = await response.json();
+
+            if (response.ok) {
+                // 基本資料填入
                 document.getElementById('res-name').innerText = `你好，${data.姓名}`;
                 document.getElementById('res-date').innerText = data.今天日期;
                 document.getElementById('res-zodiac').innerText = data.星座;
                 document.getElementById('res-chinese').innerText = "生肖" + data.生肖;
-                document.getElementById('res-desc').innerText = data.描述;
-                document.getElementById('res-stars').innerText = data.運勢;
                 document.getElementById('res-color').innerText = data.幸運顏色;
                 document.getElementById('res-number').innerText = data.幸運數字;
+                document.getElementById('res-stars').innerText = data.運勢;
+                document.getElementById('res-desc').innerText = data.描述;
 
-                // 動態產生細項
+                // 2. 動態產生細項結果
                 let detailHtml = '';
                 const cats = ['感情', '事業', '學業', '財運'];
-                let hasDetails = false;
                 
+                // 檢查是否有任何細項資料回傳
+                let hasDetails = false;
                 cats.forEach(cat => {
-                    if(data[cat]) { // 如果後端有回傳該項目的物件
+                    // 只有當後端有回傳該項目的資料 (非 null) 時才顯示
+                    if(data[cat]) {
                         hasDetails = true;
                         detailHtml += `
-                            <div class="detail-item">
+                            <div style="margin-bottom:10px; border-bottom:1px dashed #555; padding-bottom:5px;">
                                 <strong style="color:#ffd700;">${cat}運勢：</strong> ${data[cat].stars}<br>
-                                <span style="font-size:0.9rem; color:#ddd;">${data[cat].message}</span>
+                                <span>${data[cat].message}</span>
                             </div>`;
                     }
                 });
-                
-                if (!hasDetails && askList.length > 0) {
-                     // 防呆：有勾選但沒回傳資料的情況
-                } else if (!hasDetails) {
-                    detailHtml = '<p style="color:#aaa; font-size:0.8rem; text-align:center;">(僅顯示總運勢，勾選上方項目可看詳情)</p>';
+
+                if (!hasDetails) {
+                    detailHtml = '<p style="color:#aaa; font-size:0.8rem;">(您未勾選任何細項，僅顯示總運勢)</p>';
                 }
 
                 document.getElementById('details').innerHTML = detailHtml;
@@ -196,12 +219,13 @@
                 alert("錯誤：" + JSON.stringify(data));
             }
         } catch (error) {
-            console.error(error);
             alert("發生錯誤，請稍後再試！");
+            console.error(error);
         } finally {
             loading.style.display = 'none';
         }
     }
 </script>
+
 </body>
 </html>

@@ -1,103 +1,69 @@
-from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
-from starlette.middleware.sessions import SessionMiddleware
-from authlib.integrations.starlette_client import OAuth
 import random
 import datetime
 import os
 from typing import Optional, List
-import uvicorn
 
 # --------------------------
-# 1. 初始化與 OAuth 設定
+# API 初始化
 # --------------------------
-app = FastAPI(title="Nebula 運勢 API (整合版)", version="4.0")
-
-# Session 金鑰 (建議換成強密碼)
-app.add_middleware(SessionMiddleware, secret_key="YOUR_SECRET_KEY")
-
-oauth = OAuth()
-
-# (1) Google 設定
-oauth.register(
-    name='google',
-    client_id='33315278198-1ij28q4g7t9e8psn6ufl0lh0hksfpfda.apps.googleusercontent.com',
-    client_secret='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',
-    server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
-    client_kwargs={'scope': 'openid email profile'}
+app = FastAPI(
+    title="Nebula 星雲占卜 API",
+    description="根據姓名與生日產生你的今日運勢，支援勾選特定運勢項目。",
+    version="9.1"
 )
 
-# (2) GitHub 設定
-oauth.register(
-    name='github',
-    client_id='Ov23liJVUWetRg8ECZQE',
-    client_secret='65a8b74e8906e2a885c6443ce910a97f2f07b2f8',
-    access_token_url='https://github.com/login/oauth/access_token',
-    authorize_url='https://github.com/login/oauth/authorize',
-    api_base_url='https://api.github.com/',
-    client_kwargs={'scope': 'user:email'}
-)
+# ==========================================
+# 🔥 關鍵修正：路徑與靜態檔案掛載
+# ==========================================
 
-# (3) Facebook 設定
-oauth.register(
-    name='facebook',
-    client_id='4356589327993064',
-    client_secret='7bb533f7a96858374dba745c31ff869d',
-    access_token_url='https://graph.facebook.com/v19.0/oauth/access_token',
-    authorize_url='https://www.facebook.com/v19.0/dialog/oauth',
-    api_base_url='https://graph.facebook.com/v19.0/',
-    client_kwargs={'scope': 'public_profile'}
-)
+# 1. 取得絕對路徑 (解決 Render 找不到檔案的問題)
+base_dir = os.path.dirname(os.path.abspath(__file__))
+static_dir = os.path.join(base_dir, "static")
 
-# --------------------------
-# 2. 登入路由邏輯
-# --------------------------
+# 2. 掛載 static 資料夾 (讓前端網頁、Icon、Manifest 能被讀取)
+app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
-@app.get("/login/{provider}")
-async def login(request: Request, provider: str):
-    redirect_uri = request.url_for('auth_callback', provider=provider)
-    return await oauth.create_client(provider).authorize_redirect(request, redirect_uri)
+# 3. 首頁路由 (回傳 index.html)
+@app.get("/")
+async def read_index():
+    return FileResponse(os.path.join(static_dir, 'index.html'))
 
-@app.get("/auth/{provider}")
-async def auth_callback(request: Request, provider: str):
-    try:
-        client = oauth.create_client(provider)
-        token = await client.authorize_access_token(request)
-        
-        user_info = {}
-        if provider == 'google':
-            user_info = token.get('userinfo')
-        elif provider == 'github':
-            resp = await client.get('user', token=token)
-            profile = resp.json()
-            user_info = {'name': profile.get('login'), 'email': profile.get('email')}
-        elif provider == 'facebook':
-            resp = await client.get('me?fields=id,name', token=token)
-            profile = resp.json()
-            user_info = {'name': profile.get('name'), 'email': 'FB用戶'}
-        
-        request.session['user'] = dict(user_info)
-        return RedirectResponse(url='/')
-    except Exception as e:
-        return f"登入失敗 ({provider}): {str(e)}"
+# ==========================================
+# 🔮 運勢 API 邏輯
+# ==========================================
 
-@app.get("/me")
-async def get_current_user(request: Request):
-    user = request.session.get('user')
-    if user:
-        return {"is_logged_in": True, "name": user.get('name')}
-    return {"is_logged_in": False}
+# --- Pydantic 模型 ---
+class FortuneRequest(BaseModel):
+    name: str = Field(..., description="使用者的姓名", example="王小明")
+    birthday: str = Field(..., description="使用者的生日 (YYYY-MM-DD)", example="1990-01-31")
+    # 接收勾選的項目列表
+    ask: List[str] = Field([], description="想詢問的運勢項目", example=["感情", "事業"])
 
-@app.get("/logout")
-async def logout(request: Request):
-    request.session.pop('user', None)
-    return RedirectResponse(url='/')
+class SubFortune(BaseModel):
+    stars: str = Field(..., description="星等表示", example="★★★★☆")
+    message: str = Field(..., description="運勢詳細訊息", example="✨ 有小驚喜")
 
-# --------------------------
-# 3. 運勢核心資料庫 (來自原 divination.py)
-# --------------------------
+class FortuneResponse(BaseModel):
+    今天日期: str
+    姓名: str
+    出生年月日: str
+    星座: str
+    生肖: str
+    運勢: str
+    描述: str
+    幸運顏色: str
+    幸運數字: int
+    # 使用 Optional，沒選到的項目會回傳 null
+    感情: Optional[SubFortune] = None
+    事業: Optional[SubFortune] = None
+    學業: Optional[SubFortune] = None
+    財運: Optional[SubFortune] = None
 
+# --- 輔助函數 ---
 def get_zodiac(month: int, day: int) -> str:
     zodiac_dates = [
         ((1, 20), "摩羯座"), ((2, 19), "水瓶座"), ((3, 21), "雙魚座"),
@@ -119,6 +85,7 @@ def get_lucky_color(year: int, zodiac: str) -> str:
     colors = ["熱情紅", "活力橙", "耀眼黃", "森林綠", "天空藍", "神秘靛", "優雅紫", "純潔白", "酷炫黑", "奢華金", "時尚銀"]
     return random.choice(colors)
 
+# --- 資料庫 ---
 zodiac_traits = {
     "牡羊座": "🔥 充滿衝勁", "金牛座": "🌿 穩重可靠", "雙子座": "💫 靈活聰明",
     "巨蟹座": "🦀 情感豐富", "獅子座": "🦁 光芒四射", "處女座": "✏️ 謹慎細心",
@@ -134,9 +101,11 @@ luck_levels = {
     5: ("★★★★★", ["🤩 大吉！心想事成", "🏆 強運當頭"])
 }
 
+# 🔥 補回：幸運小叮嚀列表
 extra_tips = [
-    "🍀 幸運色能帶給你好心情", "💤 今晚早點休息，明天會更好", "☕ 一杯熱飲能帶來平靜", 
-    "📖 適合閱讀或吸收新知", "💬 小心別和親近的人起衝突", "💘 可能會收到意想不到的關心",
+    "🍀 幸運色能帶給你好心情", "💤 今晚早點休息，明天會更好",
+    "☕ 一杯熱飲能帶來平靜", "📖 適合閱讀或吸收新知",
+    "💬 小心別和親近的人起衝突", "💘 可能會收到意想不到的關心",
     "🧘‍♀️ 嘗試放空自己，釋放壓力", "💪 自信是今天最強的武器"
 ]
 
@@ -153,42 +122,15 @@ fortune_categories = {
     "財運": {1: ["💸 看緊荷包"], 2: ["⚖️ 收支平衡"], 3: ["💰 小有進帳"], 4: ["📈 投資獲利"], 5: ["🤑 財源廣進"]}
 }
 
-# --------------------------
-# 4. 資料模型與運算邏輯
-# --------------------------
-
-class FortuneRequest(BaseModel):
-    name: str
-    birthday: str
-    ask: List[str] = []  # 接收使用者勾選的項目
-
-class SubFortune(BaseModel):
-    stars: str
-    message: str
-
-class FortuneResponse(BaseModel):
-    今天日期: str
-    姓名: str
-    出生年月日: str
-    星座: str
-    生肖: str
-    運勢: str
-    描述: str
-    幸運顏色: str
-    幸運數字: int
-    感情: Optional[SubFortune] = None
-    事業: Optional[SubFortune] = None
-    學業: Optional[SubFortune] = None
-    財運: Optional[SubFortune] = None
-
-def create_sub_fortune(category_name, level) -> SubFortune:
-    category_dict = fortune_categories[category_name]
+def pick_sub_fortune(category_dict) -> SubFortune:
+    level = random.randint(1, 5)
     specific_desc = category_dict.get(level, ["運勢如上"]) 
     return SubFortune(
         stars="★" * level + "☆" * (5 - level),
         message=f"{random.choice(sub_fortunes[level])} {random.choice(specific_desc)}"
     )
 
+# --- API 核心路由 ---
 @app.post("/fortune", response_model=FortuneResponse)
 def get_fortune(request: FortuneRequest):
     try:
@@ -198,18 +140,11 @@ def get_fortune(request: FortuneRequest):
 
     zodiac = get_zodiac(bday.month, bday.day)
     c_zodiac = get_chinese_zodiac(bday.year)
-
-    # 運勢計算
-    all_categories = ["感情", "事業", "學業", "財運"]
-    scores = {}
-    for cat in all_categories:
-        scores[cat] = random.randint(1, 5)
-
-    average_score = sum(scores.values()) / len(scores)
-    luck_val = int(round(average_score))
-    luck_val = max(1, min(5, luck_val))
-
+    
+    luck_val = random.randint(1, 5)
     luck_star, luck_msgs = luck_levels[luck_val]
+    
+    # 🔥 補回：隨機選擇一個小叮嚀
     tip = random.choice(extra_tips)
     
     result = {
@@ -219,22 +154,21 @@ def get_fortune(request: FortuneRequest):
         "星座": zodiac,
         "生肖": c_zodiac,
         "運勢": luck_star,
+        # 🔥 補回：把 tip 加回描述中
         "描述": f"{zodiac_traits.get(zodiac, '')} {random.choice(luck_msgs)} {tip}",
         "幸運顏色": get_lucky_color(bday.year, c_zodiac),
         "幸運數字": random.randint(1, 99)
     }
 
-    # 處理勾選細項
+    # 處理勾選邏輯
     for item in request.ask:
         if item in fortune_categories:
-            item_score = scores.get(item, 3) 
-            result[item] = create_sub_fortune(item, item_score)
+            result[item] = pick_sub_fortune(fortune_categories[item])
     
     return result
 
-@app.get("/")
-async def read_index():
-    return FileResponse("index.html")
-
 if __name__ == "__main__":
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    import uvicorn
+    # 使用 0.0.0.0 和環境變數 PORT 以適應 Render 環境
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
