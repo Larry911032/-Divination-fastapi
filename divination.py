@@ -122,8 +122,8 @@ fortune_categories = {
     "財運": {1: ["💸 看緊荷包"], 2: ["⚖️ 收支平衡"], 3: ["💰 小有進帳"], 4: ["📈 投資獲利"], 5: ["🤑 財源廣進"]}
 }
 
-def pick_sub_fortune(category_dict) -> SubFortune:
-    level = random.randint(1, 5)
+def pick_sub_fortune(category_dict, level: int) -> SubFortune:
+    # 移除原本內部的 level = random.randint(1, 5)
     specific_desc = category_dict.get(level, ["運勢如上"]) 
     return SubFortune(
         stars="★" * level + "☆" * (5 - level),
@@ -138,13 +138,34 @@ def get_fortune(request: FortuneRequest):
     except ValueError:
         bday = datetime.datetime.today()
 
+    # 1. 設定隨機種子 (建議加上這個，讓同一天運勢固定，詳見我們先前的討論)
+    seed_key = f"{request.name}{request.birthday}{datetime.date.today().isoformat()}"
+    random.seed(seed_key)
+
     zodiac = get_zodiac(bday.month, bday.day)
     c_zodiac = get_chinese_zodiac(bday.year)
     
-    luck_val = random.randint(1, 5)
-    luck_star, luck_msgs = luck_levels[luck_val]
+    # ==========================================
+    # 🔥 修改重點：先產生 4 個分項的分數
+    # ==========================================
+    # 定義所有範疇
+    all_categories = ["感情", "事業", "學業", "財運"]
     
-    # 🔥 補回：隨機選擇一個小叮嚀
+    # 預先為每個範疇產生 1~5 的分數
+    category_scores = {cat: random.randint(1, 5) for cat in all_categories}
+    
+    # 2. 計算平均值作為「總運勢」
+    # sum(分數) / 數量，並使用 round 四雪五入
+    total_score = sum(category_scores.values())
+    avg_score = round(total_score / len(all_categories))
+    
+    # 確保分數是整數且在 1-5 之間 (雖然 round 完通常沒問題，但加個保險)
+    luck_val = int(avg_score)
+    if luck_val < 1: luck_val = 1
+    if luck_val > 5: luck_val = 5
+
+    # 取得總運勢的對應文字
+    luck_star, luck_msgs = luck_levels[luck_val]
     tip = random.choice(extra_tips)
     
     result = {
@@ -153,17 +174,18 @@ def get_fortune(request: FortuneRequest):
         "出生年月日": request.birthday,
         "星座": zodiac,
         "生肖": c_zodiac,
-        "運勢": luck_star,
-        # 🔥 補回：把 tip 加回描述中
+        "運勢": luck_star, # 這裡現在是平均後的結果
         "描述": f"{zodiac_traits.get(zodiac, '')} {random.choice(luck_msgs)} {tip}",
         "幸運顏色": get_lucky_color(bday.year, c_zodiac),
         "幸運數字": random.randint(1, 99)
     }
 
-    # 處理勾選邏輯
+    # 3. 處理勾選邏輯
+    # 使用者有勾選的項目 (request.ask)，我們就從剛剛算好的 category_scores 拿分數出來產生文字
     for item in request.ask:
         if item in fortune_categories:
-            result[item] = pick_sub_fortune(fortune_categories[item])
+            score = category_scores[item] # 取出該項目的預設分數
+            result[item] = pick_sub_fortune(fortune_categories[item], score)
     
     return result
 
