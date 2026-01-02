@@ -1,4 +1,4 @@
-# 🔮 Nebula 星雲占卜 API (Divination FastAPI)
+# 🔮 Nebula 天機占卜 API (Divination FastAPI)
 
 這是一個基於 **FastAPI** 開發的個人化運勢占卜系統。使用者輸入姓名與生日後，系統會結合西洋星座、生肖與隨機運算，產生每日運勢分析，包含幸運色、幸運數字以及針對「感情、事業、學業、財運」的詳細建議。
 
@@ -19,10 +19,4 @@
 
 ## 🚀 快速開始 (Quick Start)
 
-### 1. 安裝環境
-
-請確保你的電腦已安裝 Python，並下載此專案。
-
-```bash
-# 安裝相依套件
-pip install -r requirements.txt
+#[text](https://divination-fastapi.onrender.com/)
